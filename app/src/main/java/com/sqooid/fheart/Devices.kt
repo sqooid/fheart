@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,23 +45,26 @@ import com.sqooid.fheart.bluetooth.MissingBluetoothPermissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-data class Device(val name: String, val address: String)
+data class LastDevice(val address: String, val name: String)
 
 @Composable
-fun DeviceItem(device: GattDevice, onClick: (_: GattDevice) -> Unit) {
+fun DeviceItem(device: GattDevice?, recordedName: String = "", onClick: (_: GattDevice) -> Unit) {
     var name by remember {
         mutableStateOf("")
     }
     val coroutineScope = rememberCoroutineScope()
     fun loadName() {
-        coroutineScope.launch {
-            name = device.name
+        if (device != null) {
+            coroutineScope.launch {
+                name = device.name
+            }
         }
+        name = recordedName
     }
     loadName()
 
     TextButton(
-        onClick = { onClick(device) },
+        onClick = { device?.let(onClick) },
         modifier = Modifier
             .clip(RoundedCornerShape(1.dp))
             .fillMaxWidth(),
@@ -96,22 +100,34 @@ fun DeviceSection(content: @Composable() () -> Unit) {
 
 @SuppressLint("MissingPermission")
 @Composable
-fun DeviceSelector(context: Activity, scanner: GattScanner, onSelect: (_: GattDevice) -> Unit) {
+fun DeviceSelector(
+    context: Activity,
+    scanner: GattScanner,
+    lastDevice: LastDevice?,
+    onSelectDevice: (_: GattDevice) -> Unit
+) {
     var scanning by remember {
         mutableStateOf(false)
     }
 
     val foundDevices = remember {
-        mutableStateMapOf<String, GattDevice>(
-        )
+        mutableStateMapOf<String, GattDevice>()
     }
     val coroutineScope = rememberCoroutineScope()
 
-    val prefs = context.getPreferences(Context.MODE_PRIVATE)
-    val lastUsed = prefs.getString("lastUsed", ",")
-        ?.split(",", ignoreCase = true, limit = 2)
-    val lastUsedId = lastUsed?.get(0)
-    val lastUsedName = lastUsed?.get(1)
+
+    var lastUsedDevice by remember {
+        mutableStateOf<GattDevice?>(null)
+    }
+    LaunchedEffect(lastDevice) {
+        lastDevice?.let {
+            lastUsedDevice = scanner.getDeviceByAddress(context, it.address)
+        }
+    }
+
+    fun onSelect(dev: GattDevice) {
+        onSelectDevice(dev)
+    }
 
     Column(
         modifier = Modifier
@@ -160,14 +176,18 @@ fun DeviceSelector(context: Activity, scanner: GattScanner, onSelect: (_: GattDe
         }
 
         // Last used device
-//        if (!lastUsedId.isNullOrEmpty() && !lastUsedName.isNullOrEmpty()) {
-//            Text(text = "Last used device")
-//            Spacer(modifier = Modifier.height(8.dp))
-//            DeviceSection {
-//                DeviceItem(device = Device(lastUsedName, lastUsedId), onClick = onSelect)
-//            }
-//            Spacer(modifier = Modifier.height(8.dp))
-//        }
+        if (lastDevice != null) {
+            Text(text = "Last used device")
+            Spacer(modifier = Modifier.height(8.dp))
+            DeviceSection {
+                DeviceItem(
+                    device = lastUsedDevice,
+                    recordedName = lastDevice.name,
+                    onClick = { onSelect(it) }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         // Other devices
         Text(text = "Available devices")
@@ -176,7 +196,7 @@ fun DeviceSelector(context: Activity, scanner: GattScanner, onSelect: (_: GattDe
             LazyColumn {
                 foundDevices.forEach {
                     item {
-                        DeviceItem(device = it.value, onClick = onSelect)
+                        DeviceItem(device = it.value, onClick = { onSelect(it) })
                     }
                 }
             }

@@ -22,6 +22,7 @@ class MissingBluetoothPermissions(message: String) : Exception(message)
 
 class GattScanner {
     private var scanner: BluetoothLeScanner? = null
+    private var adapter: BluetoothAdapter? = null
     private var scanCallback: ScanCallback? = null
 
     @SuppressLint("MissingPermission")
@@ -32,6 +33,7 @@ class GattScanner {
         scanResultCallback: (device: GattDevice) -> Unit
     ) {
         val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        adapter = manager.adapter
         scanner = manager.adapter.bluetoothLeScanner
 
         // checks
@@ -59,7 +61,7 @@ class GattScanner {
 
                 super.onScanResult(callbackType, result)
                 Log.d("app", result.toString())
-                Log.d("app",Thread.currentThread().getName())
+                Log.d("app", Thread.currentThread().getName())
                 val device = GattDevice(context, result.device)
                 scanResultCallback(device)
             }
@@ -82,5 +84,10 @@ class GattScanner {
         scanner?.stopScan(scanCallback)
         Log.d("app", "stopped scan")
         scanCallback = null
+    }
+
+    fun getDeviceByAddress(context: Activity, address: String): GattDevice? {
+        val device = adapter?.getRemoteDevice(address) ?: return null
+        return GattDevice(context, device)
     }
 }
