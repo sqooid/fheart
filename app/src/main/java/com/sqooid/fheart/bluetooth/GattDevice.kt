@@ -11,15 +11,8 @@ import com.sqooid.fheart.permissionCheckAndRequest
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlin.time.Duration
 
-fun BluetoothGattCharacteristic.containsProperty(property: Int): Boolean =
-    properties and property != 0
-
-fun BluetoothGattCharacteristic.hasNotify(): Boolean =
-    containsProperty(BluetoothGattCharacteristic.PROPERTY_NOTIFY)
-
-fun BluetoothGattCharacteristic.hasRead(): Boolean =
-    containsProperty(BluetoothGattCharacteristic.PROPERTY_READ)
 
 class GattDevice(context: Activity, val device: BluetoothDevice) {
     init {
@@ -27,9 +20,6 @@ class GattDevice(context: Activity, val device: BluetoothDevice) {
             throw MissingBluetoothPermissions("Bluetooth connect permission not enabled")
         }
     }
-
-    var gattCallback: BluetoothGattCallback? = null
-    var gatt: BluetoothGatt? = null
 
     val name: String
         @SuppressLint("MissingPermission")
@@ -40,28 +30,43 @@ class GattDevice(context: Activity, val device: BluetoothDevice) {
         context: Activity,
         serviceId: String,
         characteristicId: String,
+        dataTypeTemplate: T,
+        readInterval: Duration? = null,
         dataCallback: (data: T) -> Unit
     ): GattListener<T>? {
         return suspendCoroutine { continuation ->
-            gattCallback = object : BluetoothGattCallback() {
+            val gattCallback = object : BluetoothGattCallback() {
+                lateinit var characteristic: BluetoothGattCharacteristic
                 override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
                     super.onServicesDiscovered(gatt, status)
-                    val characteristic = gatt?.getService(UUID.fromString(serviceId))
+                    val newCharacteristic = gatt?.getService(UUID.fromString(serviceId))
                         ?.getCharacteristic(UUID.fromString(characteristicId))
-                    if (characteristic == null) {
+                    if (newCharacteristic == null) {
                         continuation.resume(null)
                         return
                     }
+                    characteristic = newCharacteristic
 
                     if (!characteristic.hasRead() && !characteristic.hasNotify()) {
                         continuation.resume(null)
                     }
 
-                    continuation.resume(GattListener(gatt, characteristic))
+                    continuation.resume(
+                        GattListener(
+                            context,
+                            gatt,
+                            characteristic,
+                            dataTypeTemplate,
+                            readInterval,
+                            dataCallback
+                        )
+                    )
                 }
+
+
             }
 
-            gatt = device.connectGatt(context, false, gattCallback)
+            device.connectGatt(context, false, gattCallback)
         }
     }
 }
