@@ -44,14 +44,21 @@ import androidx.compose.ui.unit.dp
 import com.sqooid.fheart.bluetooth.BluetoothDisabledException
 import com.sqooid.fheart.bluetooth.GattDevice
 import com.sqooid.fheart.bluetooth.GattScanner
+import com.sqooid.fheart.bluetooth.GattServices
 import com.sqooid.fheart.bluetooth.MissingBluetoothPermissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class LastDevice(val address: String, val name: String)
 
 @Composable
-fun DeviceItem(device: GattDevice?, recordedName: String = "", onClick: (_: GattDevice) -> Unit) {
+fun DeviceItem(
+    device: GattDevice?,
+    recordedName: String = "",
+    loading: Boolean = false,
+    onClick: (_: GattDevice) -> Unit
+) {
     var name by remember {
         mutableStateOf("")
     }
@@ -74,7 +81,8 @@ fun DeviceItem(device: GattDevice?, recordedName: String = "", onClick: (_: Gatt
         shape = RectangleShape
     ) {
         Row(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.baseline_monitor_heart_24),
@@ -85,6 +93,9 @@ fun DeviceItem(device: GattDevice?, recordedName: String = "", onClick: (_: Gatt
                 text = name.ifBlank { "Unnamed" }
             )
             Spacer(modifier = Modifier.weight(1f))
+            if (loading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+            }
         }
     }
 }
@@ -107,7 +118,8 @@ fun DeviceSelector(
     context: Activity,
     scanner: GattScanner,
     scanning: Boolean,
-    setScanning: (_:Boolean)->Unit,
+    setScanning: (_: Boolean) -> Unit,
+    loadingDevice: Boolean,
     foundDevices: SnapshotStateMap<String, GattDevice>,
     lastDevice: LastDevice?,
     onSelectDevice: (_: GattDevice) -> Unit
@@ -119,15 +131,19 @@ fun DeviceSelector(
         mutableStateOf<GattDevice?>(null)
     }
 
-    LaunchedEffect(lastDevice) {
-        lastDevice?.let {
-            lastUsedDevice = scanner.getDeviceByAddress(context, it.address)
-        }
-    }
-
     fun onSelect(dev: GattDevice) {
         onSelectDevice(dev)
     }
+
+    LaunchedEffect(lastDevice) {
+        lastDevice?.let {
+            lastUsedDevice = scanner.getDeviceByAddress(context, it.address)
+            lastUsedDevice?.let { gattDevice ->
+                onSelect(gattDevice)
+            }
+        }
+    }
+
 
     Column(
         modifier = Modifier
@@ -140,11 +156,12 @@ fun DeviceSelector(
             TextButton(modifier = Modifier.animateContentSize(),
                 onClick = {
                     coroutineScope.launch(Dispatchers.IO) {
-                        Log.d("app", Thread.currentThread().getName())
                         if (!scanning) {
                             try {
-                                scanner.startScan(context) {
-                                    Log.d("app", Thread.currentThread().getName())
+                                scanner.startScan(
+                                    context,
+                                    filterServices = arrayOf(GattServices.HEART_RATE)
+                                ) {
                                     if (!foundDevices.contains(it.address)) {
                                         foundDevices[it.address] = it
                                     }
@@ -183,6 +200,7 @@ fun DeviceSelector(
                 DeviceItem(
                     device = lastUsedDevice,
                     recordedName = lastDevice.name,
+                    loading = loadingDevice,
                     onClick = { onSelect(it) }
                 )
             }

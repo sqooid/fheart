@@ -7,7 +7,12 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.util.Log
 import com.sqooid.fheart.permissionCheckAndRequest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -29,47 +34,27 @@ class GattDevice(context: Activity, private val device: BluetoothDevice) {
         get() = device.address
 
     @SuppressLint("MissingPermission")
-    suspend fun <T : DataParser<T>> createListener(
+    fun <T : DataParser<T>> createListener(
         context: Activity,
-        serviceId: String,
-        characteristicId: String,
+        serviceId: UUID,
+        characteristicId: UUID,
         dataTypeTemplate: T,
         readInterval: Duration? = null,
         dataCallback: (data: T) -> Unit
     ): GattListener<T>? {
-        return suspendCoroutine { continuation ->
-            val gattCallback = object : BluetoothGattCallback() {
-                lateinit var characteristic: BluetoothGattCharacteristic
-                override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
-                    super.onServicesDiscovered(gatt, status)
-                    val newCharacteristic = gatt?.getService(UUID.fromString(serviceId))
-                        ?.getCharacteristic(UUID.fromString(characteristicId))
-                    if (newCharacteristic == null) {
-                        continuation.resume(null)
-                        return
-                    }
-                    characteristic = newCharacteristic
-
-                    if (!characteristic.hasRead() && !characteristic.hasNotify()) {
-                        continuation.resume(null)
-                    }
-
-                    continuation.resume(
-                        GattListener(
-                            context,
-                            gatt,
-                            characteristic,
-                            dataTypeTemplate,
-                            readInterval,
-                            dataCallback
-                        )
-                    )
-                }
-
-
-            }
-
-            device.connectGatt(context, false, gattCallback)
+        return try {
+            GattListener(
+                context,
+                device,
+                serviceId,
+                characteristicId,
+                dataTypeTemplate,
+                readInterval,
+                dataCallback
+            )
+        } catch (e: InvalidBluetoothDevice) {
+            null
         }
+
     }
 }

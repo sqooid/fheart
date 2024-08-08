@@ -19,22 +19,29 @@ import kotlin.coroutines.coroutineContext
 
 class BluetoothDisabledException(message: String) : Exception(message)
 class MissingBluetoothPermissions(message: String) : Exception(message)
+class InvalidBluetoothDevice(message: String) : Exception(message)
 
 class GattScanner {
     private var scanner: BluetoothLeScanner? = null
     private var adapter: BluetoothAdapter? = null
     private var scanCallback: ScanCallback? = null
 
+    private fun init(context: Activity) {
+        if (adapter==null || scanner==null) {
+            val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            adapter = manager.adapter
+            scanner = manager.adapter.bluetoothLeScanner
+        }
+    }
+
     @SuppressLint("MissingPermission")
     fun startScan(
         context: Activity,
-        filterServices: Array<String> = arrayOf(),
-        filterCharacteristics: Array<String> = arrayOf(),
+        filterServices: Array<UUID> = arrayOf(),
+        filterCharacteristics: Array<UUID> = arrayOf(),
         scanResultCallback: (device: GattDevice) -> Unit
     ) {
-        val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        adapter = manager.adapter
-        scanner = manager.adapter.bluetoothLeScanner
+        init(context)
 
         // checks
         if (scanner == null) {
@@ -64,13 +71,12 @@ class GattScanner {
 
                 super.onScanResult(callbackType, result)
                 Log.d("app", result.toString())
-                Log.d("app", Thread.currentThread().getName())
                 val device = GattDevice(context, result.device)
                 scanResultCallback(device)
             }
         }
         val serviceFilters = filterServices.map {
-            ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID.fromString(it))).build()
+            ScanFilter.Builder().setServiceUuid(ParcelUuid(it)).build()
         }
         scanner?.startScan(
             serviceFilters,
@@ -90,7 +96,10 @@ class GattScanner {
     }
 
     fun getDeviceByAddress(context: Activity, address: String): GattDevice? {
+        init(context)
+        Log.d("app","searching last device: $address")
         val device = adapter?.getRemoteDevice(address) ?: return null
+        Log.d("app","found last device: ${device.address}")
         return GattDevice(context, device)
     }
 }
