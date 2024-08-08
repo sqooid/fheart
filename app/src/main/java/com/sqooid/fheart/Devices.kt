@@ -24,12 +24,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,22 +106,19 @@ fun DeviceSection(content: @Composable() () -> Unit) {
 fun DeviceSelector(
     context: Activity,
     scanner: GattScanner,
+    scanning: Boolean,
+    setScanning: (_:Boolean)->Unit,
+    foundDevices: SnapshotStateMap<String, GattDevice>,
     lastDevice: LastDevice?,
     onSelectDevice: (_: GattDevice) -> Unit
 ) {
-    var scanning by remember {
-        mutableStateOf(false)
-    }
 
-    val foundDevices = remember {
-        mutableStateMapOf<String, GattDevice>()
-    }
     val coroutineScope = rememberCoroutineScope()
-
 
     var lastUsedDevice by remember {
         mutableStateOf<GattDevice?>(null)
     }
+
     LaunchedEffect(lastDevice) {
         lastDevice?.let {
             lastUsedDevice = scanner.getDeviceByAddress(context, it.address)
@@ -149,18 +149,18 @@ fun DeviceSelector(
                                         foundDevices[it.address] = it
                                     }
                                 }
-                                scanning = true
+                                setScanning(true)
                             } catch (e: MissingBluetoothPermissions) {
-                                scanning = false
+                                setScanning(false)
                                 Log.e("app", e.message.toString())
                             } catch (e: BluetoothDisabledException) {
-                                scanning = false
+                                setScanning(false)
                                 Log.e("app", e.message.toString())
                             }
 
                         } else {
                             scanner.stopScan()
-                            scanning = false
+                            setScanning(false)
                         }
                     }
 

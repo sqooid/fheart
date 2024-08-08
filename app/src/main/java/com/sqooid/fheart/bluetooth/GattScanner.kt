@@ -49,6 +49,9 @@ class GattScanner {
         ) && permissionCheckAndRequest(
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION
+        ) && permissionCheckAndRequest(
+            context,
+            Manifest.permission.BLUETOOTH_CONNECT
         )
         if (!hasPerms) {
             throw MissingBluetoothPermissions("Required permissions are missing")

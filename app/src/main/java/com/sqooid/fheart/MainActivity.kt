@@ -12,14 +12,11 @@ import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,8 +24,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,10 +39,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.graphics.toRect
 import androidx.core.util.Consumer
-import com.sqooid.fheart.bluetooth.GattListener
+import com.sqooid.fheart.bluetooth.GattDevice
 import com.sqooid.fheart.bluetooth.GattScanner
 import com.sqooid.fheart.ui.theme.MyApplicationTheme
-import com.sqooid.fheart.ui.theme.Typography
 
 class MainActivity : ComponentActivity() {
 
@@ -58,7 +56,6 @@ class MainActivity : ComponentActivity() {
         var displayLayout: LayoutCoordinates? = null
         val pipBuilder = PictureInPictureParams.Builder()
             .setAspectRatio(Rational(4, 3))
-            .setAutoEnterEnabled(true)
 
 
         val prefs = getPreferences(Context.MODE_PRIVATE)
@@ -72,6 +69,12 @@ class MainActivity : ComponentActivity() {
                         LastDevice(lastAdd, lastName)
                     } else null
                 )
+            }
+            val foundDevices = remember {
+                mutableStateMapOf<String, GattDevice>()
+            }
+            var scanning by remember {
+                mutableStateOf(false)
             }
 //            var hrListener by remember {
 //                mutableStateOf<GattListener<?>>(null)
@@ -110,9 +113,10 @@ class MainActivity : ComponentActivity() {
                                 Button(modifier = Modifier, onClick = {
                                     displayLayout?.let {
                                         Log.d("app", displayLayout.toString())
-                                        val pipParams = pipBuilder.setSourceRectHint(
-                                            it.boundsInWindow().toAndroidRectF().toRect()
-                                        )
+                                        val pipParams = pipBuilder
+                                            .setSourceRectHint(
+                                                it.boundsInWindow().toAndroidRectF().toRect()
+                                            )
                                             .build()
                                         enterPictureInPictureMode(pipParams)
                                     }
@@ -123,12 +127,19 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                             }
-                            DeviceSelector(context = activity, scanner, lastDevice) { device ->
-                                val addr = device.address
+                            DeviceSelector(
+                                context = activity,
+                                scanner,
+                                scanning,
+                                { scanning = it },
+                                foundDevices,
+                                lastDevice
+                            ) { device ->
+                                val address = device.address
                                 val name = device.name
-                                val lastString = "${addr},${name}"
+                                val lastString = "${address},${name}"
                                 prefs.edit().putString("lastUsed", lastString).apply()
-                                lastDevice = LastDevice(addr, name)
+                                lastDevice = LastDevice(address, name)
                             }
                         }
                     }
