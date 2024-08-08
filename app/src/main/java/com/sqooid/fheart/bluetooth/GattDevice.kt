@@ -14,7 +14,7 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.time.Duration
 
 
-class GattDevice(context: Activity, val device: BluetoothDevice) {
+class GattDevice(context: Activity, private val device: BluetoothDevice) {
     init {
         if (!permissionCheckAndRequest(context, Manifest.permission.BLUETOOTH_CONNECT)) {
             throw MissingBluetoothPermissions("Bluetooth connect permission not enabled")
@@ -23,7 +23,10 @@ class GattDevice(context: Activity, val device: BluetoothDevice) {
 
     val name: String
         @SuppressLint("MissingPermission")
-        get() = device.name
+        get() = device.name ?: ""
+
+    val address: String
+        get() = device.address
 
     @SuppressLint("MissingPermission")
     suspend fun <T : DataParser<T>> createListener(

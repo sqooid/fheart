@@ -15,6 +15,7 @@ import android.os.ParcelUuid
 import android.util.Log
 import com.sqooid.fheart.permissionCheckAndRequest
 import java.util.UUID
+import kotlin.coroutines.coroutineContext
 
 class BluetoothDisabledException(message: String) : Exception(message)
 class MissingBluetoothPermissions(message: String) : Exception(message)
@@ -42,8 +43,11 @@ class GattScanner {
             Manifest.permission.BLUETOOTH_SCAN
         ) && permissionCheckAndRequest(
             context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) && permissionCheckAndRequest(
+            context,
             Manifest.permission.ACCESS_COARSE_LOCATION
-        ) && permissionCheckAndRequest(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        )
         if (!hasPerms) {
             throw MissingBluetoothPermissions("Required permissions are missing")
         }
@@ -52,8 +56,10 @@ class GattScanner {
 
         scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
+
                 super.onScanResult(callbackType, result)
                 Log.d("app", result.toString())
+                Log.d("app",Thread.currentThread().getName())
                 val device = GattDevice(context, result.device)
                 scanResultCallback(device)
             }

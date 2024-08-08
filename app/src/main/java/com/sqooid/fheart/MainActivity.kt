@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.sqooid.fheart.bluetooth.GattScanner
 import com.sqooid.fheart.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -29,7 +30,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val bluetoothHandler = BluetoothHandler()
+        val scanner = GattScanner()
         val activity = this
         setContent {
             MyApplicationTheme {
@@ -37,11 +38,11 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
                 ) {
-                    Column (modifier = Modifier.padding(8.dp)) {
+                    Column(modifier = Modifier.padding(8.dp)) {
                         Button(onClick = { enterPictureInPictureMode(pipParams()) }) {
                             Text(text = "PiP")
                         }
-                        DeviceSelector(context = activity, handler = bluetoothHandler) {
+                        DeviceSelector(context = activity, scanner) {
 
                         }
                     }

@@ -14,7 +14,7 @@ fun permissionCheckAndRequest(context: Activity, permission: String): Boolean {
     ) {
         ActivityCompat.requestPermissions(
             context,
-            arrayOf(Manifest.permission.BLUETOOTH_CONNECT),
+            arrayOf(permission),
             0
         )
     } else return true
