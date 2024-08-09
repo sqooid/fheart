@@ -1,4 +1,4 @@
-package com.sqooid.fheart
+package com.sqooid.fheart.lib
 
 import android.Manifest
 import android.app.Activity

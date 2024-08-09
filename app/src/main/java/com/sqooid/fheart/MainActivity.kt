@@ -1,16 +1,13 @@
 package com.sqooid.fheart
 
-import android.app.PictureInPictureParams
-import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.Rect
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.util.Rational
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,33 +21,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toAndroidRectF
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.PictureInPictureModeChangedInfo
-import androidx.core.graphics.toRect
 import androidx.core.util.Consumer
-import com.sqooid.fheart.bluetooth.GattCharacteristics
-import com.sqooid.fheart.bluetooth.GattDevice
-import com.sqooid.fheart.bluetooth.GattListener
-import com.sqooid.fheart.bluetooth.GattScanner
-import com.sqooid.fheart.bluetooth.GattServices
-import com.sqooid.fheart.bluetooth.parser.HeartRateMeasurement
+import com.sqooid.fheart.lib.MainViewModel
+import com.sqooid.fheart.ui.DeviceSelector
+import com.sqooid.fheart.ui.HeartRateDisplay
 import com.sqooid.fheart.ui.theme.MyApplicationTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -60,41 +43,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val scanner = GattScanner()
+
+        val viewModel: MainViewModel by viewModels()
+        viewModel.init(this)
         val activity = this
-        var displayLayout: LayoutCoordinates? = null
-        val pipBuilder = PictureInPictureParams.Builder()
-            .setAspectRatio(Rational(4, 3))
 
-
-        val prefs = getPreferences(Context.MODE_PRIVATE)
-        val (lastAdd, lastName) = prefs.getString("lastUsed", ",")
-            ?.split(",", ignoreCase = true, limit = 2) ?: listOf("", "")
+        if (!isPipSupported) {
+            Toast.makeText(
+                this,
+                "This device does not support picture in picture mode",
+                Toast.LENGTH_LONG
+            ).show()
+        }
 
         setContent {
-            var lastDevice by remember {
-                mutableStateOf<LastDevice?>(
-                    if (lastAdd.isNotBlank()) {
-                        LastDevice(lastAdd, lastName)
-                    } else null
-                )
-            }
-            val foundDevices = remember {
-                mutableStateMapOf<String, GattDevice>()
-            }
-            var loadingDevice by remember {
-                mutableStateOf(false)
-            }
-            var scanning by remember {
-                mutableStateOf(false)
-            }
-            var hrListener by remember {
-                mutableStateOf<GattListener<HeartRateMeasurement>?>(null)
-            }
-            var hrValue by remember {
-                mutableIntStateOf(0)
-            }
-            val coroutineContext = rememberCoroutineScope()
             val inPipMode = rememberIsInPipMode(activity = this)
             MyApplicationTheme {
                 // A surface container using the 'background' color from the theme
@@ -102,8 +64,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
                 ) {
                     if (inPipMode) {
-                        HeartRateDisplay(rate = hrValue, inPipMode) {
-                            displayLayout = it
+                        HeartRateDisplay(rate = viewModel.hrValue, true) {
+                            viewModel.displayLayout = it
                         }
 
                     } else {
@@ -123,19 +85,11 @@ class MainActivity : ComponentActivity() {
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                HeartRateDisplay(rate = hrValue, inPipMode) {
-                                    displayLayout = it
+                                HeartRateDisplay(rate = viewModel.hrValue, false) {
+                                    viewModel.displayLayout = it
                                 }
                                 Button(modifier = Modifier, onClick = {
-                                    displayLayout?.let {
-                                        Log.d("app", displayLayout.toString())
-                                        val pipParams = pipBuilder
-                                            .setSourceRectHint(
-                                                it.boundsInWindow().toAndroidRectF().toRect()
-                                            )
-                                            .build()
-                                        enterPictureInPictureMode(pipParams)
-                                    }
+                                    viewModel.startPip(activity)
                                 }) {
                                     Text(
                                         text = "Start floating\nwindow",
@@ -145,32 +99,8 @@ class MainActivity : ComponentActivity() {
                             }
                             DeviceSelector(
                                 context = activity,
-                                scanner,
-                                scanning,
-                                { scanning = it },
-                                loadingDevice,
-                                foundDevices,
-                                lastDevice
-                            ) { device ->
-                                loadingDevice = true
-                                val address = device.address
-                                val name = device.name
-                                val lastString = "${address},${name}"
-                                prefs.edit().putString("lastUsed", lastString).apply()
-                                lastDevice = LastDevice(address, name)
-                                Log.d("app", "selected device ${name}")
-                                hrListener = device.createListener(
-                                    activity,
-                                    GattServices.HEART_RATE,
-                                    GattCharacteristics.HEART_RATE_MEASUREMENT,
-                                    HeartRateMeasurement(0)
-                                ) {
-                                    loadingDevice = false
-                                    hrValue = it.measurement
-                                    Log.d("app", "got hr $hrValue")
-                                }
-
-                            }
+                                viewModel
+                            )
                         }
                     }
                 }
@@ -189,26 +119,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun rememberIsInPipMode(activity: ComponentActivity): Boolean {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        var pipMode by remember { mutableStateOf(activity.isInPictureInPictureMode) }
-        DisposableEffect(activity) {
-            val observer = Consumer<PictureInPictureModeChangedInfo> { info ->
-                pipMode = info.isInPictureInPictureMode
-            }
-            activity.addOnPictureInPictureModeChangedListener(observer)
-            onDispose { activity.removeOnPictureInPictureModeChangedListener(observer) }
+    var pipMode by remember { mutableStateOf(activity.isInPictureInPictureMode) }
+    DisposableEffect(activity) {
+        val observer = Consumer<PictureInPictureModeChangedInfo> { info ->
+            pipMode = info.isInPictureInPictureMode
         }
-        return pipMode
-    } else {
-        return false
+        activity.addOnPictureInPictureModeChangedListener(observer)
+        onDispose { activity.removeOnPictureInPictureModeChangedListener(observer) }
     }
+    return pipMode
 }
 
-private fun pipParams(rect: Rect): PictureInPictureParams {
-    return PictureInPictureParams.Builder().setAspectRatio(Rational(4, 3)).apply {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            setSeamlessResizeEnabled(true)
-        }
-        setSourceRectHint(rect)
-    }.build()
-}
