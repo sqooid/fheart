@@ -84,7 +84,7 @@ interface DataParser<T> {
 @SuppressLint("MissingPermission")
 class GattListener<T : DataParser<T>>(
     context: Context,
-    private var device: BluetoothDevice,
+    device: BluetoothDevice,
     private val serviceId: UUID,
     private val characteristicId: UUID,
     private val dataTypeTemplate: T,

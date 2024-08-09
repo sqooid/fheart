@@ -26,7 +26,6 @@ import com.sqooid.fheart.bluetooth.MissingBluetoothPermissions
 import com.sqooid.fheart.bluetooth.parser.HeartRateMeasurement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class LastDevice(val address: String, val name: String)
 class MainViewModel() : ViewModel() {
