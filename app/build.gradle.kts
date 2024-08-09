@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.sqooid.fheart"
-        minSdk = 31
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -27,6 +27,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
         }
     }
     compileOptions {

@@ -11,11 +11,11 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
-import com.sqooid.fheart.permissionCheckAndRequest
+import com.sqooid.fheart.lib.permissionCheckAndRequest
 import java.util.UUID
-import kotlin.coroutines.coroutineContext
 
 class BluetoothDisabledException(message: String) : Exception(message)
 class MissingBluetoothPermissions(message: String) : Exception(message)
@@ -27,7 +27,7 @@ class GattScanner {
     private var scanCallback: ScanCallback? = null
 
     private fun init(context: Activity) {
-        if (adapter==null || scanner==null) {
+        if (adapter == null || scanner == null) {
             val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
             adapter = manager.adapter
             scanner = manager.adapter.bluetoothLeScanner
@@ -38,7 +38,6 @@ class GattScanner {
     fun startScan(
         context: Activity,
         filterServices: Array<UUID> = arrayOf(),
-        filterCharacteristics: Array<UUID> = arrayOf(),
         scanResultCallback: (device: GattDevice) -> Unit
     ) {
         init(context)
@@ -47,34 +46,41 @@ class GattScanner {
         if (scanner == null) {
             throw BluetoothDisabledException("Bluetooth is disabled")
         }
-        val hasPerms = permissionCheckAndRequest(
-            context,
-            Manifest.permission.BLUETOOTH_SCAN
-        ) && permissionCheckAndRequest(
+        val hasPerms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissionCheckAndRequest(
+                context,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) && permissionCheckAndRequest(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            )
+        } else {
+            true
+        } && permissionCheckAndRequest(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) && permissionCheckAndRequest(
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION
-        ) && permissionCheckAndRequest(
-            context,
-            Manifest.permission.BLUETOOTH_CONNECT
         )
+
         if (!hasPerms) {
             throw MissingBluetoothPermissions("Required permissions are missing")
         }
 
         if (scanCallback != null) return
 
-        scanCallback = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
+        scanCallback =
+            object : ScanCallback() {
+                override fun onScanResult(callbackType: Int, result: ScanResult) {
 
-                super.onScanResult(callbackType, result)
-                Log.d("app", result.toString())
-                val device = GattDevice(context, result.device)
-                scanResultCallback(device)
+                    super.onScanResult(callbackType, result)
+                    Log.d("app", result.toString())
+                    val device = GattDevice(context, result.device)
+                    scanResultCallback(device)
+                }
             }
-        }
+
         val serviceFilters = filterServices.map {
             ScanFilter.Builder().setServiceUuid(ParcelUuid(it)).build()
         }
@@ -97,9 +103,9 @@ class GattScanner {
 
     fun getDeviceByAddress(context: Activity, address: String): GattDevice? {
         init(context)
-        Log.d("app","searching last device: $address")
+        Log.d("app", "searching last device: $address")
         val device = adapter?.getRemoteDevice(address) ?: return null
-        Log.d("app","found last device: ${device.address}")
+        Log.d("app", "found last device: ${device.address}")
         return GattDevice(context, device)
     }
 }
