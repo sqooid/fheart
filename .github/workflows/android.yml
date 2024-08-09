@@ -18,6 +18,8 @@ jobs:
         distribution: temurin
         java-version: '17'
         cache: gradle
+    - name: Change wrapper permissions
+      run: chmod +x ./gradlew
     - name: Build debug APK
       run: ./gradlew assembleDebug --stacktrace
     - name: Upload APK
@@ -39,7 +41,8 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-          
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
       - name: Build Release APK
         run: ./gradlew assembleRelease
   
@@ -73,7 +76,8 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-  
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
       - name: Build Release AAB
         run: ./gradlew bundleRelease
   
