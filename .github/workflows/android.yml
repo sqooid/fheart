@@ -25,7 +25,7 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v2
       with:
-        name: sample-app.apk
+        name: app-debug.apk
         path: app/build/outputs/apk/debug/app-debug.apk
         
   build:
@@ -67,7 +67,7 @@ jobs:
       - name: Upload Signed APK
         uses: actions/upload-artifact@v2
         with:
-          name: sample-app-signed  # Artifact Name
+          name: app-release.apk  # Artifact Name
           path: app/build/outputs/apk/release/*.apk
   bundle:
     name: Build release bundle
@@ -108,6 +108,6 @@ jobs:
       - name: Upload Signed AAB
         uses: actions/upload-artifact@v2
         with:
-          name: sample-app-bundle  # Artifact Name
+          name: app-release.aab  # Artifact Name
           path: app/build/outputs/bundle/release/app-release.aab
 
