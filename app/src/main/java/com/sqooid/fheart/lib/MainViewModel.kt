@@ -131,7 +131,7 @@ class MainViewModel() : ViewModel() {
         ) {
             loadingDevice = false
             hrValue = it.measurement
-            Log.d("app", "got hr $hrValue")
+            Log.d("app-trace", "got hr $hrValue")
         }
     }
 }
