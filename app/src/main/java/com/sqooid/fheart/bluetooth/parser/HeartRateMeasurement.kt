@@ -11,7 +11,7 @@ class HeartRateMeasurement(val measurement: Int) : DataParser<HeartRateMeasureme
             byteArray[1].toPositiveInt()
         } else {
             byteArray[1].toPositiveInt() shl 8 or byteArray[2].toPositiveInt()
-        }.toInt()
+        }
         return HeartRateMeasurement(hr)
     }
 }
