@@ -23,6 +23,7 @@ import com.sqooid.fheart.bluetooth.GattListener
 import com.sqooid.fheart.bluetooth.GattScanner
 import com.sqooid.fheart.bluetooth.GattServices
 import com.sqooid.fheart.bluetooth.MissingBluetoothPermissions
+import com.sqooid.fheart.bluetooth.parser.BatteryLevel
 import com.sqooid.fheart.bluetooth.parser.HeartRateMeasurement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -42,7 +43,9 @@ class MainViewModel() : ViewModel() {
     var loadingDevice: Boolean by mutableStateOf(false)
     var scanning: Boolean by mutableStateOf(false)
     private var hrListener: GattListener<HeartRateMeasurement>? by mutableStateOf(null)
+    private var batteryListener: GattListener<BatteryLevel>? by mutableStateOf(null)
     var hrValue: Int by mutableIntStateOf(0)
+    var batteryValue: Int by mutableIntStateOf(0)
 
     fun init(context: Activity) {
         val prefs = context.getPreferences(Context.MODE_PRIVATE)
@@ -123,6 +126,15 @@ class MainViewModel() : ViewModel() {
 
         // connect for listening
         Log.d("app", "selected device ${name}")
+        batteryListener = device.createListener(
+            context,
+            GattServices.BATTERY,
+            GattCharacteristics.BATTERY_LEVEL,
+            BatteryLevel(0)
+        ) {
+            batteryValue = it.percentage
+            Log.v("app", "got battery $batteryValue")
+        }
         hrListener = device.createListener(
             context,
             GattServices.HEART_RATE,
@@ -131,7 +143,7 @@ class MainViewModel() : ViewModel() {
         ) {
             loadingDevice = false
             hrValue = it.measurement
-            Log.d("app-trace", "got hr $hrValue")
+            Log.v("app", "got hr $hrValue")
         }
     }
 }

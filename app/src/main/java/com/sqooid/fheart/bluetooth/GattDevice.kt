@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothDevice
+import android.util.Log
 import com.sqooid.fheart.lib.permissionCheckAndRequest
 import java.util.UUID
 import kotlin.time.Duration
@@ -43,6 +44,7 @@ class GattDevice(context: Activity, private val device: BluetoothDevice) {
                 dataCallback
             )
         } catch (e: InvalidBluetoothDevice) {
+            Log.e("app", "failed to create listener $e")
             null
         }
 

@@ -29,7 +29,7 @@ object GattServices {
 
 object GattCharacteristics {
     val HEART_RATE_MEASUREMENT = getLongUuid("2a37")
-    val BATTERY_LEVEL = getLongUuid("2a37")
+    val BATTERY_LEVEL = getLongUuid("2a19")
     val MANUFACTURER_NAME_STRING = getLongUuid("2a29")
     val MODEL_NUMBER_STRING = getLongUuid("2a24")
     val SERIAL_NUMBER_STRING = getLongUuid("2a25")
@@ -194,7 +194,6 @@ class GattListener<T : DataParser<T>>(
             if (!gatt.setCharacteristicNotification(characteristic, true)) {
                 Log.d("app", "setCharacteristicNotification failed for ${characteristic.uuid}")
             }
-            val dess = characteristic.descriptors
             characteristic.getDescriptor(GattDescriptors.CLIENT_CHARACTERISTIC_CONFIGURATION)
                 ?.let {
                     writeDescriptor(gatt, it, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
@@ -209,6 +208,10 @@ class GattListener<T : DataParser<T>>(
             ) {
                 gatt.readCharacteristic(characteristic)
             }
+        }
+
+        else {
+            Log.e("app", "Cannot read or notify on this characteristic")
         }
     }
 
