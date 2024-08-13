@@ -37,16 +37,22 @@ import com.sqooid.fheart.lib.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+enum class DeviceState {
+    IDLE,
+    LOADING,
+    LOADED,
+}
 
 @Composable
 fun DeviceItem(
     device: GattDevice?,
     recordedName: String = "",
-    loading: Boolean = false,
+    state: DeviceState = DeviceState.IDLE,
+    battery: Int = 0,
     onClick: (_: GattDevice) -> Unit
 ) {
     var name by remember {
-        mutableStateOf("")
+        mutableStateOf(recordedName)
     }
     val coroutineScope = rememberCoroutineScope()
     fun loadName() {
@@ -54,8 +60,6 @@ fun DeviceItem(
             coroutineScope.launch(context = Dispatchers.Main) {
                 name = device.name
             }
-        } else {
-            name = recordedName
         }
     }
     loadName()
@@ -80,8 +84,14 @@ fun DeviceItem(
                 text = name.ifBlank { "Unnamed" }
             )
             Spacer(modifier = Modifier.weight(1f))
-            if (loading) {
+            if (state == DeviceState.LOADING) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp))
+            } else if (state == DeviceState.LOADED) {
+                if (battery>0) {
+                    Text(text = "$battery%")
+                }else{
+                    Text(text = "Connected")
+                }
             }
         }
     }
@@ -135,7 +145,8 @@ fun DeviceSelector(
                 DeviceItem(
                     device = viewModel.lastDevice,
                     recordedName = viewModel.lastDeviceDummy?.name ?: "",
-                    loading = viewModel.loadingDevice,
+                    state = if (viewModel.loadingDevice) DeviceState.LOADING else if (viewModel.hrValue > 0) DeviceState.LOADED else DeviceState.IDLE,
+                    battery = viewModel.batteryValue,
                     onClick = { viewModel.selectDevice(context, it) }
                 )
             }
