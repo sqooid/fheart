@@ -44,6 +44,8 @@ class MainViewModel() : ViewModel() {
     var scanning: Boolean by mutableStateOf(false)
     private var hrListener: GattListener<HeartRateMeasurement>? by mutableStateOf(null)
     private var batteryListener: GattListener<BatteryLevel>? by mutableStateOf(null)
+
+    // set to 0 to indicate idle/no connection
     var hrValue: Int by mutableIntStateOf(0)
     var batteryValue: Int by mutableIntStateOf(0)
 
@@ -110,40 +112,64 @@ class MainViewModel() : ViewModel() {
         scanning = false
     }
 
-    fun selectDevice(context: Activity, device: GattDevice) {
-        loadingDevice = true
-
-        // save for recall
-        val address = device.address
-        val name = device.name
-        val lastString = "${address},${name}"
-        val prefs = context.getPreferences(Context.MODE_PRIVATE)
-        prefs.edit().putString("lastUsed", lastString).apply()
-
-        // display selection
-        lastDeviceDummy = LastDevice(address, name)
-        lastDevice = device
-
-        // connect for listening
-        Log.d("app", "selected device ${name}")
-        batteryListener = device.createListener(
-            context,
-            GattServices.BATTERY,
-            GattCharacteristics.BATTERY_LEVEL,
-            BatteryLevel(0)
-        ) {
-            batteryValue = it.percentage
-            Log.v("app", "got battery $batteryValue")
+    private fun disconnectDevices() {
+        if (batteryListener != null) {
+            batteryListener?.close()
         }
-        hrListener = device.createListener(
-            context,
-            GattServices.HEART_RATE,
-            GattCharacteristics.HEART_RATE_MEASUREMENT,
-            HeartRateMeasurement(0)
-        ) {
-            loadingDevice = false
-            hrValue = it.measurement
-            Log.v("app", "got hr $hrValue")
+        if (hrListener != null) {
+            hrListener?.close()
+        }
+        hrValue = 0
+    }
+
+    fun selectDevice(context: Activity, device: GattDevice, chosen: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) {
+
+            // Disconnect from existing device
+            disconnectDevices()
+            if (chosen) {
+                return@launch
+            }
+
+            loadingDevice = true
+
+            // save for recall
+            val address = device.address
+            val name = device.name
+            val lastString = "${address},${name}"
+            val prefs = context.getPreferences(Context.MODE_PRIVATE)
+            prefs.edit().putString("lastUsed", lastString).apply()
+
+            // display selection
+            lastDeviceDummy = LastDevice(address, name)
+            lastDevice = device
+
+            // connect for listening
+            Log.d("app", "selected device ${name}")
+            batteryListener = device.createListener(
+                context,
+                GattServices.BATTERY,
+                GattCharacteristics.BATTERY_LEVEL,
+                BatteryLevel(0),
+            ) {
+                batteryValue = it.percentage
+                Log.v("app", "got battery $batteryValue")
+            }
+            hrListener = device.createListener(
+                context,
+                GattServices.HEART_RATE,
+                GattCharacteristics.HEART_RATE_MEASUREMENT,
+                HeartRateMeasurement(0),
+                connectionCallback = { connected ->
+                    if (!connected) {
+                        disconnectDevices()
+                    }
+                },
+            ) {
+                loadingDevice = false
+                hrValue = it.measurement
+                Log.v("app", "got hr $hrValue")
+            }
         }
     }
 }

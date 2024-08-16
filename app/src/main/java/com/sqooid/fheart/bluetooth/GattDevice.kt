@@ -31,6 +31,7 @@ class GattDevice(context: Activity, private val device: BluetoothDevice) {
         characteristicId: UUID,
         dataTypeTemplate: T,
         readInterval: Duration? = null,
+        connectionCallback: (connected: Boolean) -> Unit = {},
         dataCallback: (data: T) -> Unit
     ): GattListener<T>? {
         return try {
@@ -41,6 +42,7 @@ class GattDevice(context: Activity, private val device: BluetoothDevice) {
                 characteristicId,
                 dataTypeTemplate,
                 readInterval,
+                connectionCallback,
                 dataCallback
             )
         } catch (e: InvalidBluetoothDevice) {
