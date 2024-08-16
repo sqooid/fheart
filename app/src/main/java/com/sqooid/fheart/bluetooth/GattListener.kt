@@ -89,6 +89,7 @@ class GattListener<T : DataParser<T>>(
     private val characteristicId: UUID,
     private val dataTypeTemplate: T,
     private val readInterval: Duration?,
+    private val connectionCallback: (connected: Boolean) -> Unit = {},
     private val dataCallback: (data: T) -> Unit
 ) {
     private val gattCallback = object : BluetoothGattCallback() {
@@ -158,6 +159,18 @@ class GattListener<T : DataParser<T>>(
                 init()
             }
         }
+
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            super.onConnectionStateChange(gatt, status, newState)
+            if (newState == BluetoothGatt.STATE_CONNECTED) {
+                Log.i("app", "gatt connected")
+                connectionCallback(true)
+            }
+            if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                Log.i("app", "gatt disconnected")
+                connectionCallback(false)
+            }
+        }
     }
 
     private var readTimer: Timer? = null
@@ -208,9 +221,7 @@ class GattListener<T : DataParser<T>>(
             ) {
                 gatt.readCharacteristic(characteristic)
             }
-        }
-
-        else {
+        } else {
             Log.e("app", "Cannot read or notify on this characteristic")
         }
     }

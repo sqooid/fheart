@@ -87,9 +87,9 @@ fun DeviceItem(
             if (state == DeviceState.LOADING) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp))
             } else if (state == DeviceState.LOADED) {
-                if (battery>0) {
+                if (battery > 0) {
                     Text(text = "$battery%")
-                }else{
+                } else {
                     Text(text = "Connected")
                 }
             }
@@ -147,7 +147,7 @@ fun DeviceSelector(
                     recordedName = viewModel.lastDeviceDummy?.name ?: "",
                     state = if (viewModel.loadingDevice) DeviceState.LOADING else if (viewModel.hrValue > 0) DeviceState.LOADED else DeviceState.IDLE,
                     battery = viewModel.batteryValue,
-                    onClick = { viewModel.selectDevice(context, it) }
+                    onClick = { viewModel.selectDevice(context, it, viewModel.hrValue > 0) }
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
