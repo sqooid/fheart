@@ -50,16 +50,16 @@ class GattScanner {
             permissionCheckAndRequest(
                 context,
                 Manifest.permission.BLUETOOTH_SCAN
-            ) && permissionCheckAndRequest(
+            ) and permissionCheckAndRequest(
                 context,
                 Manifest.permission.BLUETOOTH_CONNECT
             )
         } else {
             true
-        } && permissionCheckAndRequest(
+        } and permissionCheckAndRequest(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
-        ) && permissionCheckAndRequest(
+        ) and permissionCheckAndRequest(
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
